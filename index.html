@@ -50,19 +50,36 @@
     padding:6px 10px; border-radius:6px; cursor:pointer; font-size:13px; white-space:nowrap;
   }
   #toolbar button.icon:hover{color:var(--text); border-color:var(--sub);}
+  .opacityctrl{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub); }
+  .opacityctrl input[type=range]{ width:80px; }
+
   #imageNav{
     display:flex; gap:6px; padding:6px 14px; background:var(--panel);
     border-bottom:1px solid var(--line); overflow-x:auto;
   }
-  #imageNav button{
-    background:transparent; border:1px solid var(--line); color:var(--sub);
-    padding:4px 10px; border-radius:5px; cursor:pointer; font-size:12px; white-space:nowrap;
+  .navitem{
+    display:flex; align-items:center; gap:2px; border:1px solid var(--line);
+    border-radius:6px; padding:2px 2px 2px 6px; flex-shrink:0;
   }
-  #imageNav button:hover{color:var(--text); border-color:var(--accent);}
+  .navname{
+    background:transparent; border:none; color:var(--sub); cursor:pointer;
+    font-size:12px; padding:3px 4px; max-width:140px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;
+  }
+  .navname:hover{color:var(--text);}
+  .navmove, .navdel{
+    background:transparent; border:none; color:var(--sub); cursor:pointer;
+    font-size:12px; padding:3px 5px; border-radius:4px;
+  }
+  .navmove:hover, .navdel:hover{ background:rgba(255,255,255,0.08); color:var(--text); }
+  .navmove:disabled{ opacity:0.25; cursor:default; }
+  .navdel:hover{ color:var(--danger); }
+
   #canvasWrap{
     flex:1; position:relative; overflow:hidden;
     background: repeating-conic-gradient(#22242a 0% 25%, #1c1e23 0% 50%) 50%/24px 24px;
   }
+  #canvasWrap.dragover{ outline:3px dashed var(--accent); outline-offset:-3px; }
   #canvas{position:absolute; top:0; left:0; cursor:crosshair;}
   #hint{
     position:absolute; bottom:10px; left:14px; font-size:12px; color:var(--sub);
@@ -72,7 +89,7 @@
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--sub); font-size:14px; text-align:center; padding:20px; line-height:1.6;
   }
-  #right{ width:360px; min-width:360px; display:flex; flex-direction:column; background:var(--panel); }
+  #right{ width:360px; min-width:360px; display:flex; flex-direction:column; background:var(--panel); overflow-y:auto; }
 
   #cellArea{ padding:14px 18px 6px; border-bottom:1px solid var(--line); }
   #cellArea .caption{ font-size:11px; color:var(--sub); margin-bottom:8px; }
@@ -86,6 +103,12 @@
   .celltab .tc{font-size:10px; color:var(--sub); margin-top:2px;}
   .celltab.active{border-color:var(--accent); background:rgba(62,207,142,0.12);}
   .celltab.addcell{color:var(--accent); border-style:dashed;}
+
+  #grandTotal{ padding:14px 18px; border-bottom:1px solid var(--line); background:rgba(62,207,142,0.06); }
+  .gt-label{ font-size:12px; color:var(--sub); margin-bottom:8px; }
+  .gt-row{ display:flex; gap:22px; }
+  .gt-item{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--sub); }
+  .gt-item b{ font-size:21px; margin-left:2px; color:var(--text); font-variant-numeric:tabular-nums; }
 
   #modeArea{ padding:12px 18px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
   #modeArea .note{ font-size:11px; color:var(--sub); line-height:1.5; }
@@ -124,6 +147,8 @@
     <button class="modebtn douga" id="btnDouga" onclick="setMode('douga')"><span class="dot douga"></span>동화 (2)</button>
     <button class="modebtn skip" id="btnSkip" onclick="setMode('skip')"><span class="dot skip"></span>제외/노카운트 (3)</button>
     <div class="spacer"></div>
+    <button class="icon" id="btnHideMarks" onclick="toggleHideMarks()">표시 숨기기 (H)</button>
+    <div class="opacityctrl"><span>표시 투명도</span><input type="range" id="opacitySlider" min="0" max="100" value="100" oninput="setOpacity(this.value)"></div>
     <button class="icon" onclick="undoMark()">되돌리기 (Z)</button>
     <button class="icon" onclick="clearMarks()">표시 전체 지우기</button>
     <button class="icon" onclick="zoom(1.2)">확대 (+)</button>
@@ -134,12 +159,12 @@
   <div id="imageNav" style="display:none;"></div>
   <div id="canvasWrap">
     <div id="empty">
-      이미지를 불러오면 여기에 표시됩니다.<br>
-      한 씬에 타임시트가 여러 장이면 한 번에 여러 파일을 선택하세요 (아래로 이어붙여 스크롤로 확인).<br><br>
-      클릭 = 표시 찍기 · 우클릭 드래그 = 화면 이동 · 휠 = 위아래 스크롤 · Ctrl+휠 = 확대/축소
+      이미지를 이 영역에 <b>드래그해서 놓거나</b>, 위의 "이미지 불러오기"로 불러오세요.<br>
+      한 씬에 타임시트가 여러 장이면 한 번에 여러 파일을 선택/드래그하세요 — 아래로 이어붙여 스크롤로 확인하고, 순서 변경·삭제도 가능합니다.<br><br>
+      클릭 = 표시 찍기 · 표시를 드래그 = 위치 이동 · 우클릭 드래그 = 화면 이동 · 휠 = 스크롤 · Ctrl+휠 = 확대/축소
     </div>
     <canvas id="canvas"></canvas>
-    <div id="hint">1=원화 · 2=동화 · 3=제외(노카운트) · A~F=셀 전환 · Z=되돌리기<br>휠=스크롤 · Ctrl+휠=확대축소 · 우클릭드래그=이동</div>
+    <div id="hint">1=원화 · 2=동화 · 3=제외(노카운트) · A~F=셀 전환 · Z=되돌리기 · H=표시 숨김/보임<br>휠=스크롤 · Ctrl+휠=확대축소 · 우클릭드래그=화면이동 · 표시 드래그=위치이동</div>
   </div>
 </div>
 
@@ -147,6 +172,14 @@
   <div id="cellArea">
     <div class="caption">셀 (한 씬에 A~F 셀이 있으면 여기서 추가/전환)</div>
     <div id="cellTabs"></div>
+  </div>
+
+  <div id="grandTotal">
+    <div class="gt-label">이 씬(타임시트 전체) 총합계 — A~F 모두 합산</div>
+    <div class="gt-row">
+      <span class="gt-item"><span class="dot genga"></span>원화 총합<b id="grandGenga">0</b></span>
+      <span class="gt-item"><span class="dot douga"></span>동화 총합<b id="grandDouga">0</b></span>
+    </div>
   </div>
 
   <div id="modeArea">
@@ -186,15 +219,26 @@ const emptyMsg = document.getElementById('empty');
 const GAP = 70;
 const ALL_CELLS = ['A','B','C','D','E','F'];
 
-let images = [];
+let images = [];        // {id, name, img, w, h, worldY}
+let imgIdCounter = 1;
 let worldWidth = 0, worldHeight = 0;
 let scale = 1, offX = 0, offY = 0;
-let markers = [];
+let markers = [];       // {imageId, lx, ly, type, cell}
 let mode = 'genga';
 let usedCells = ['A'];
 let activeCell = 'A';
 let rows = [];
 let panning = false, panStart = {x:0,y:0}, offStart = {x:0,y:0};
+let markerOpacity = 100;
+let markersHidden = false;
+let draggingMarker = null;
+let dragMoved = false;
+let dragStartClient = {x:0,y:0};
+let clickStart = null;
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 function resizeCanvas(){
   canvas.width = wrap.clientWidth;
@@ -203,28 +247,46 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 
-document.getElementById('fileInput').addEventListener('change', (e)=>{
-  const files = Array.from(e.target.files);
+function loadFiles(files){
   if(!files.length) return;
   const wasEmpty = images.length === 0;
   const loaders = files.map(file => new Promise((resolve)=>{
     const reader = new FileReader();
     reader.onload = (ev)=>{
       const im = new Image();
-      im.onload = ()=> resolve({img:im, w:im.width, h:im.height});
+      im.onload = ()=> resolve({name:file.name, img:im, w:im.width, h:im.height});
       im.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   }));
   Promise.all(loaders).then(newImgs=>{
-    images.push(...newImgs);
+    newImgs.forEach(o=>{ o.id = imgIdCounter++; images.push(o); });
     emptyMsg.style.display = 'none';
     recomputeLayout();
     resizeCanvas();
     if(wasEmpty) fitAll(); else draw();
   });
+}
+
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  loadFiles(Array.from(e.target.files));
   e.target.value = '';
 });
+
+['dragenter','dragover'].forEach(evt=>{
+  wrap.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); wrap.classList.add('dragover'); });
+});
+['dragleave'].forEach(evt=>{
+  wrap.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); wrap.classList.remove('dragover'); });
+});
+wrap.addEventListener('drop', (e)=>{
+  e.preventDefault(); e.stopPropagation();
+  wrap.classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files).filter(f=> f.type.startsWith('image/'));
+  if(files.length) loadFiles(files);
+});
+window.addEventListener('dragover', e=> e.preventDefault());
+window.addEventListener('drop', e=> e.preventDefault());
 
 function recomputeLayout(){
   let y = 0, maxW = 0;
@@ -236,18 +298,46 @@ function recomputeLayout(){
 
 function renderImageNav(){
   const nav = document.getElementById('imageNav');
-  if(images.length <= 1){ nav.style.display = 'none'; nav.innerHTML=''; return; }
+  if(!images.length){ nav.style.display = 'none'; nav.innerHTML = ''; return; }
   nav.style.display = 'flex';
-  nav.innerHTML = images.map((im,i)=>`<button onclick="scrollToImage(${i})">타임시트 ${i+1}</button>`).join('');
+  nav.innerHTML = images.map((im, idx)=>`
+    <div class="navitem">
+      <button class="navname" onclick="scrollToImage(${im.id})" title="${escapeHtml(im.name)}">${escapeHtml(im.name)}</button>
+      <button class="navmove" onclick="moveImage(${im.id},-1)" ${idx===0?'disabled':''}>↑</button>
+      <button class="navmove" onclick="moveImage(${im.id},1)" ${idx===images.length-1?'disabled':''}>↓</button>
+      <button class="navdel" onclick="deleteImage(${im.id})" title="이 타임시트와 표시 삭제">✕</button>
+    </div>`).join('');
 }
 
-function scrollToImage(i){
-  const im = images[i];
+function scrollToImage(id){
+  const im = images.find(x=>x.id===id);
   if(!im) return;
   scale = (wrap.clientWidth / im.w) * 0.96;
   offX = (wrap.clientWidth - im.w*scale)/2;
   offY = 20 - im.worldY*scale;
   clampOffsets();
+  draw();
+}
+
+function moveImage(id, dir){
+  const idx = images.findIndex(x=>x.id===id);
+  if(idx < 0) return;
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= images.length) return;
+  const tmp = images[idx]; images[idx] = images[newIdx]; images[newIdx] = tmp;
+  recomputeLayout();
+  renderImageNav();
+  draw();
+}
+
+function deleteImage(id){
+  if(!confirm('이 타임시트와 여기 찍힌 표시를 모두 삭제할까요?')) return;
+  images = images.filter(x=>x.id !== id);
+  markers = markers.filter(m=>m.imageId !== id);
+  recomputeLayout();
+  renderImageNav();
+  updateCounts();
+  if(!images.length){ emptyMsg.style.display = 'flex'; worldWidth = 0; worldHeight = 0; }
   draw();
 }
 
@@ -277,6 +367,49 @@ function clampOffsets(){
   }
 }
 
+function toWorld(e){
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  return { ix: (mx - offX)/scale, iy: (my - offY)/scale };
+}
+
+function findImageAt(iy){
+  if(!images.length) return null;
+  let best = null, bestDist = Infinity;
+  images.forEach(im=>{
+    let d;
+    if(iy < im.worldY) d = im.worldY - iy;
+    else if(iy > im.worldY + im.h) d = iy - (im.worldY + im.h);
+    else d = 0;
+    if(d < bestDist){ bestDist = d; best = im; }
+  });
+  return best;
+}
+
+function findMarkerNear(ix, iy){
+  const threshold = 14/scale;
+  let best = null, bestD = Infinity;
+  markers.forEach(m=>{
+    const im = images.find(x=>x.id === m.imageId);
+    if(!im) return;
+    const ax = m.lx, ay = im.worldY + m.ly;
+    const dist = Math.hypot(ax-ix, ay-iy);
+    if(dist < threshold && dist < bestD){ bestD = dist; best = m; }
+  });
+  return best;
+}
+
+function placeMarkerAt(e){
+  const {ix, iy} = toWorld(e);
+  const im = findImageAt(iy);
+  if(!im) return;
+  markers.push({ imageId: im.id, lx: ix, ly: iy - im.worldY, type: mode, cell: activeCell });
+  draw();
+  updateCounts();
+}
+
+function currentAlpha(){ return markersHidden ? 0 : markerOpacity/100; }
+
 function labelForMarker(m, indexInGroup){
   if(m.type === 'skip') return '✕';
   return `${m.cell}${indexInGroup}`;
@@ -294,7 +427,7 @@ function draw(){
     ctx.font = `${13/scale}px sans-serif`;
     ctx.fillStyle = 'rgba(230,230,235,0.65)';
     ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-    ctx.fillText(`타임시트 ${i+1}`, 4/scale, im.worldY - 6/scale);
+    ctx.fillText(im.name, 4/scale, im.worldY - 6/scale);
     if(i > 0){
       ctx.setLineDash([8/scale, 6/scale]);
       ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -307,26 +440,34 @@ function draw(){
     }
   });
 
-  const seq = {};
-  const r = 11/scale;
-  const font = Math.max(9, 12/scale);
-  markers.forEach(m=>{
-    let n = null;
-    if(m.type !== 'skip'){
-      const key = m.cell + m.type;
-      seq[key] = (seq[key]||0) + 1;
-      n = seq[key];
-    }
-    const color = m.type==='genga' ? '#4f8ef7' : m.type==='douga' ? '#f0574f' : '#7a7f8a';
-    ctx.beginPath();
-    ctx.arc(m.x, m.y, r, 0, Math.PI*2);
-    ctx.fillStyle = color; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1;
-    ctx.lineWidth = 1.5/scale; ctx.strokeStyle = '#fff'; ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${font}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(labelForMarker(m, n), m.x, m.y);
-  });
+  const alpha = currentAlpha();
+  if(alpha > 0){
+    const byId = new Map(images.map(im=>[im.id, im]));
+    const seq = {};
+    const r = 11/scale;
+    const font = Math.max(9, 12/scale);
+    markers.forEach(m=>{
+      const im = byId.get(m.imageId);
+      if(!im) return;
+      const ax = m.lx, ay = im.worldY + m.ly;
+      let n = null;
+      if(m.type !== 'skip'){
+        const key = m.cell + m.type;
+        seq[key] = (seq[key]||0) + 1;
+        n = seq[key];
+      }
+      const color = m.type==='genga' ? '#4f8ef7' : m.type==='douga' ? '#f0574f' : '#7a7f8a';
+      ctx.beginPath();
+      ctx.arc(ax, ay, r, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.globalAlpha = 0.92*alpha; ctx.fill(); ctx.globalAlpha = 1*alpha;
+      ctx.lineWidth = 1.5/scale; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${font}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(labelForMarker(m, n), ax, ay);
+    });
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
 }
 
@@ -335,28 +476,64 @@ canvas.addEventListener('mousedown', (e)=>{
     panning = true;
     panStart = {x:e.clientX, y:e.clientY};
     offStart = {x:offX, y:offY};
+    return;
+  }
+  if(e.button !== 0 || !images.length) return;
+  const {ix, iy} = toWorld(e);
+  const hit = findMarkerNear(ix, iy);
+  if(hit){
+    draggingMarker = hit;
+    dragMoved = false;
+    dragStartClient = {x:e.clientX, y:e.clientY};
+  } else {
+    clickStart = {x:e.clientX, y:e.clientY};
   }
 });
+
 window.addEventListener('mousemove', (e)=>{
   if(panning){
     offX = offStart.x + (e.clientX - panStart.x);
     offY = offStart.y + (e.clientY - panStart.y);
     clampOffsets();
     draw();
+    return;
+  }
+  if(draggingMarker){
+    const moved = Math.hypot(e.clientX-dragStartClient.x, e.clientY-dragStartClient.y);
+    if(moved > 3){
+      dragMoved = true;
+      const {ix, iy} = toWorld(e);
+      const im = images.find(x=>x.id === draggingMarker.imageId);
+      if(im){ draggingMarker.lx = ix; draggingMarker.ly = iy - im.worldY; }
+      draw();
+    }
   }
 });
-window.addEventListener('mouseup', ()=>{ panning = false; });
-canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
 
-canvas.addEventListener('click', (e)=>{
-  if(!images.length) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  const ix = (mx - offX)/scale, iy = (my - offY)/scale;
-  markers.push({x:ix, y:iy, type:mode, cell:activeCell});
-  draw();
-  updateCounts();
+window.addEventListener('mouseup', (e)=>{
+  if(panning){ panning = false; return; }
+  if(draggingMarker){
+    if(dragMoved){
+      const im = images.find(x=>x.id === draggingMarker.imageId);
+      const absY = im ? im.worldY + draggingMarker.ly : draggingMarker.ly;
+      const newIm = findImageAt(absY);
+      if(newIm && newIm.id !== draggingMarker.imageId){
+        draggingMarker.ly = absY - newIm.worldY;
+        draggingMarker.imageId = newIm.id;
+      }
+      updateCounts();
+      draw();
+    } else {
+      placeMarkerAt(e);
+    }
+    draggingMarker = null;
+  } else if(clickStart){
+    const moved = Math.hypot(e.clientX-clickStart.x, e.clientY-clickStart.y);
+    if(moved <= 3) placeMarkerAt(e);
+    clickStart = null;
+  }
 });
+canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
 
 canvas.addEventListener('wheel', (e)=>{
   if(!images.length) return;
@@ -397,14 +574,27 @@ function setMode(m){
   document.getElementById('modeNoteText').textContent = m==='genga' ? '원화' : m==='douga' ? '동화' : '제외(노카운트, X표시)';
 }
 
+function toggleHideMarks(){
+  markersHidden = !markersHidden;
+  document.getElementById('btnHideMarks').textContent = markersHidden ? '표시 보이기 (H)' : '표시 숨기기 (H)';
+  draw();
+}
+function setOpacity(v){
+  markerOpacity = v;
+  if(markersHidden){
+    markersHidden = false;
+    document.getElementById('btnHideMarks').textContent = '표시 숨기기 (H)';
+  }
+  draw();
+}
+
 function undoMark(){ markers.pop(); draw(); updateCounts(); }
 function clearMarks(){
   if(markers.length && !confirm('모든 이미지의 표시를 지울까요?')) return;
   markers = []; draw(); updateCounts();
 }
 
-function resetScene(){
-  if((images.length || markers.length) && !confirm('이미지와 표시를 모두 지우고 새 씬을 시작할까요? (표에 쌓인 데이터는 유지됩니다)')) return;
+function doResetSceneInternal(){
   images = []; markers = []; usedCells = ['A']; activeCell = 'A';
   worldWidth = 0; worldHeight = 0;
   emptyMsg.style.display = 'flex';
@@ -412,6 +602,10 @@ function resetScene(){
   renderCellTabs();
   updateCounts();
   draw();
+}
+function resetScene(){
+  if((images.length || markers.length) && !confirm('이미지와 표시를 모두 지우고 새 씬을 시작할까요? (표에 쌓인 데이터는 유지됩니다)')) return;
+  doResetSceneInternal();
 }
 
 function getCellCounts(){
@@ -439,11 +633,7 @@ function renderCellTabs(){
   wrap2.innerHTML = html;
 }
 
-function selectCell(c){
-  activeCell = c;
-  renderCellTabs();
-  updateCounts();
-}
+function selectCell(c){ activeCell = c; renderCellTabs(); updateCounts(); }
 function addCell(){
   const next = ALL_CELLS.find(c => !usedCells.includes(c));
   if(!next) return;
@@ -460,6 +650,10 @@ function updateCounts(){
   document.getElementById('activeCellLabel').textContent = activeCell;
   document.getElementById('gengaCount').textContent = cur.genga;
   document.getElementById('dougaCount').textContent = cur.douga;
+  let gg = 0, gd = 0;
+  Object.values(cc).forEach(v=>{ gg += v.genga; gd += v.douga; });
+  document.getElementById('grandGenga').textContent = gg;
+  document.getElementById('grandDouga').textContent = gd;
 }
 
 function addToTable(){
@@ -472,7 +666,7 @@ function addToTable(){
   rows.push({cut, cells: cellsData});
   renderTable();
   document.getElementById('cutInput').value = '';
-  resetScene();
+  doResetSceneInternal();
 }
 
 function allCellsInRows(){
@@ -487,45 +681,55 @@ function renderTable(){
   const tbody = document.getElementById('tbody');
   const tfoot = document.getElementById('tfoot');
 
-  thead.innerHTML = `<tr><th>컷</th>${cells.map(c=>`<th>${c} 원화</th><th>${c} 동화</th>`).join('')}<th></th></tr>`;
+  thead.innerHTML = `<tr><th>컷</th>${cells.map(c=>`<th>${c} 원화</th><th>${c} 동화</th>`).join('')}<th>합계 원화</th><th>합계 동화</th><th></th></tr>`;
 
   tbody.innerHTML = '';
   const totals = {};
   cells.forEach(c => totals[c] = {genga:0, douga:0});
+  let grandG = 0, grandD = 0;
 
   rows.forEach((r, i)=>{
-    let tds = `<td>${r.cut}</td>`;
+    let tds = `<td>${escapeHtml(r.cut)}</td>`;
+    let rowG = 0, rowD = 0;
     cells.forEach(c=>{
       const g = r.cells[c]?.genga || 0;
       const d = r.cells[c]?.douga || 0;
       totals[c].genga += g; totals[c].douga += d;
+      rowG += g; rowD += d;
       tds += `<td>${g}</td><td>${d}</td>`;
     });
+    grandG += rowG; grandD += rowD;
+    tds += `<td>${rowG}</td><td>${rowD}</td>`;
     tds += `<td><button class="delbtn" onclick="deleteRow(${i})">✕</button></td>`;
     const tr = document.createElement('tr');
     tr.innerHTML = tds;
     tbody.appendChild(tr);
   });
 
-  tfoot.innerHTML = `<tr><td>합계</td>${cells.map(c=>`<td>${totals[c].genga}</td><td>${totals[c].douga}</td>`).join('')}<td></td></tr>`;
+  tfoot.innerHTML = `<tr><td>합계</td>${cells.map(c=>`<td>${totals[c].genga}</td><td>${totals[c].douga}</td>`).join('')}<td>${grandG}</td><td>${grandD}</td><td></td></tr>`;
 }
 function deleteRow(i){ rows.splice(i,1); renderTable(); }
 
 function exportCSV(){
   if(rows.length===0){ alert('표에 내용이 없습니다.'); return; }
   const cells = allCellsInRows();
-  let csv = '컷,' + cells.map(c=>`${c} 원화,${c} 동화`).join(',') + '\n';
+  let csv = '컷,' + cells.map(c=>`${c} 원화,${c} 동화`).join(',') + ',합계 원화,합계 동화\n';
   const totals = {}; cells.forEach(c=> totals[c]={genga:0,douga:0});
+  let grandG=0, grandD=0;
   rows.forEach(r=>{
     let line = [r.cut];
+    let rowG=0, rowD=0;
     cells.forEach(c=>{
       const g = r.cells[c]?.genga||0, d = r.cells[c]?.douga||0;
       totals[c].genga += g; totals[c].douga += d;
+      rowG += g; rowD += d;
       line.push(g, d);
     });
+    grandG += rowG; grandD += rowD;
+    line.push(rowG, rowD);
     csv += line.join(',') + '\n';
   });
-  csv += '합계,' + cells.map(c=>`${totals[c].genga},${totals[c].douga}`).join(',') + '\n';
+  csv += '합계,' + cells.map(c=>`${totals[c].genga},${totals[c].douga}`).join(',') + `,${grandG},${grandD}\n`;
   const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -538,15 +742,19 @@ function exportImage(){
   const off = document.createElement('canvas');
   off.width = worldWidth; off.height = worldHeight;
   const octx = off.getContext('2d');
-  images.forEach((im,i)=>{
+  images.forEach((im)=>{
     octx.drawImage(im.img, 0, im.worldY);
     octx.font = '13px sans-serif';
     octx.fillStyle = 'rgba(0,0,0,0.55)';
     octx.textAlign = 'left'; octx.textBaseline = 'bottom';
-    octx.fillText(`타임시트 ${i+1}`, 4, im.worldY - 6);
+    octx.fillText(im.name, 4, im.worldY - 6);
   });
+  const byId = new Map(images.map(im=>[im.id, im]));
   const seq = {};
   markers.forEach(m=>{
+    const im = byId.get(m.imageId);
+    if(!im) return;
+    const ax = m.lx, ay = im.worldY + m.ly;
     let n = null;
     if(m.type !== 'skip'){
       const key = m.cell + m.type;
@@ -555,13 +763,13 @@ function exportImage(){
     }
     const color = m.type==='genga' ? '#4f8ef7' : m.type==='douga' ? '#f0574f' : '#7a7f8a';
     octx.beginPath();
-    octx.arc(m.x, m.y, 14, 0, Math.PI*2);
+    octx.arc(ax, ay, 14, 0, Math.PI*2);
     octx.fillStyle = color; octx.globalAlpha = 0.92; octx.fill(); octx.globalAlpha = 1;
     octx.lineWidth = 2; octx.strokeStyle = '#fff'; octx.stroke();
     octx.fillStyle = '#fff';
     octx.font = 'bold 15px sans-serif';
-    octx.textAlign='center'; octx.textBaseline='middle';
-    octx.fillText(labelForMarker(m, n), m.x, m.y);
+    octx.textAlign = 'center'; octx.textBaseline = 'middle';
+    octx.fillText(labelForMarker(m, n), ax, ay);
   });
   const url = off.toDataURL('image/png');
   const a = document.createElement('a');
@@ -575,6 +783,7 @@ window.addEventListener('keydown', (e)=>{
   else if(k === '2') setMode('douga');
   else if(k === '3') setMode('skip');
   else if(k === 'z') undoMark();
+  else if(k === 'h') toggleHideMarks();
   else if(k === '+' || k === '=') zoom(1.2);
   else if(k === '-') zoom(1/1.2);
   else if(ALL_CELLS.map(c=>c.toLowerCase()).includes(k) && usedCells.includes(k.toUpperCase())) selectCell(k.toUpperCase());
@@ -582,6 +791,7 @@ window.addEventListener('keydown', (e)=>{
 
 renderCellTabs();
 renderTable();
+updateCounts();
 resizeCanvas();
 </script>
 </body>
