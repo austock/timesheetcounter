@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>타임시트 카운터</title>
+<style>
+  :root{
+    --bg:#1b1d22;
+    --panel:#24262d;
+    --line:#34373f;
+    --text:#e8e9ec;
+    --sub:#9a9ea8;
+    --genga:#4f8ef7;
+    --douga:#f0574f;
+    --skip:#7a7f8a;
+    --accent:#3ecf8e;
+    --danger:#f0574f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif;
+    display:flex; height:100vh; overflow:hidden;
+  }
+  #left{ flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line); }
+  #toolbar{
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  #toolbar label.filebtn{
+    background:var(--accent); color:#0b1210; font-weight:600;
+    padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; white-space:nowrap;
+  }
+  #toolbar input[type=file]{display:none;}
+  .modebtn{
+    padding:7px 12px; border-radius:6px; border:1px solid var(--line);
+    background:transparent; color:var(--text); cursor:pointer; font-size:13px;
+    display:flex; align-items:center; gap:6px; white-space:nowrap;
+  }
+  .modebtn.active.genga{background:var(--genga); border-color:var(--genga); color:#fff;}
+  .modebtn.active.douga{background:var(--douga); border-color:var(--douga); color:#fff;}
+  .modebtn.active.skip{background:var(--skip); border-color:var(--skip); color:#fff;}
+  .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .dot.genga{background:var(--genga);}
+  .dot.douga{background:var(--douga);}
+  .dot.skip{background:var(--skip);}
+  #toolbar .spacer{flex:1;}
+  #toolbar button.icon{
+    background:transparent; border:1px solid var(--line); color:var(--sub);
+    padding:6px 10px; border-radius:6px; cursor:pointer; font-size:13px; white-space:nowrap;
+  }
+  #toolbar button.icon:hover{color:var(--text); border-color:var(--sub);}
+  #imageNav{
+    display:flex; gap:6px; padding:6px 14px; background:var(--panel);
+    border-bottom:1px solid var(--line); overflow-x:auto;
+  }
+  #imageNav button{
+    background:transparent; border:1px solid var(--line); color:var(--sub);
+    padding:4px 10px; border-radius:5px; cursor:pointer; font-size:12px; white-space:nowrap;
+  }
+  #imageNav button:hover{color:var(--text); border-color:var(--accent);}
+  #canvasWrap{
+    flex:1; position:relative; overflow:hidden;
+    background: repeating-conic-gradient(#22242a 0% 25%, #1c1e23 0% 50%) 50%/24px 24px;
+  }
+  #canvas{position:absolute; top:0; left:0; cursor:crosshair;}
+  #hint{
+    position:absolute; bottom:10px; left:14px; font-size:12px; color:var(--sub);
+    background:rgba(0,0,0,0.45); padding:6px 10px; border-radius:6px; pointer-events:none; line-height:1.5;
+  }
+  #empty{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--sub); font-size:14px; text-align:center; padding:20px; line-height:1.6;
+  }
+  #right{ width:360px; min-width:360px; display:flex; flex-direction:column; background:var(--panel); }
+
+  #cellArea{ padding:14px 18px 6px; border-bottom:1px solid var(--line); }
+  #cellArea .caption{ font-size:11px; color:var(--sub); margin-bottom:8px; }
+  #cellTabs{ display:flex; flex-wrap:wrap; gap:6px; }
+  .celltab{
+    border:1px solid var(--line); background:transparent; color:var(--text);
+    border-radius:6px; padding:6px 8px; cursor:pointer; font-size:12px; text-align:left;
+    display:flex; flex-direction:column; align-items:center; min-width:44px;
+  }
+  .celltab b{font-size:13px;}
+  .celltab .tc{font-size:10px; color:var(--sub); margin-top:2px;}
+  .celltab.active{border-color:var(--accent); background:rgba(62,207,142,0.12);}
+  .celltab.addcell{color:var(--accent); border-style:dashed;}
+
+  #modeArea{ padding:12px 18px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  #modeArea .note{ font-size:11px; color:var(--sub); line-height:1.5; }
+
+  #counts{ padding:16px 18px; border-bottom:1px solid var(--line); }
+  #counts .who{ font-size:12px; color:var(--sub); margin-bottom:4px; }
+  .countrow{ display:flex; align-items:center; justify-content:space-between; padding:6px 0; }
+  .countrow .label{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--sub);}
+  .countrow .num{font-size:26px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .countrow .num.genga{color:var(--genga);}
+  .countrow .num.douga{color:var(--douga);}
+
+  #addRow{ padding:14px 18px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  #addRow input{ background:var(--bg); border:1px solid var(--line); color:var(--text); padding:8px 10px; border-radius:6px; font-size:13px; }
+  #addRow button{ background:var(--accent); color:#0b1210; font-weight:600; border:none; padding:10px; border-radius:6px; cursor:pointer; font-size:13px; }
+
+  #tableWrap{ flex:1; overflow:auto; padding:12px 18px; }
+  table{ width:100%; border-collapse:collapse; font-size:12px; }
+  th, td{ padding:5px 4px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th{ color:var(--sub); font-weight:500; font-size:11px; }
+  tfoot td{ font-weight:700; color:var(--accent); border-top:1px solid var(--line); border-bottom:none; }
+  .delbtn{ background:none; border:none; color:var(--sub); cursor:pointer; font-size:14px; }
+  .delbtn:hover{ color:var(--danger); }
+
+  #exportRow{ padding:14px 18px; border-top:1px solid var(--line); display:flex; gap:8px; }
+  #exportRow button{ flex:1; background:transparent; border:1px solid var(--line); color:var(--text); padding:9px; border-radius:6px; cursor:pointer; font-size:12px; }
+  #exportRow button:hover{ border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <div id="toolbar">
+    <label class="filebtn">이미지 불러오기 (여러 장 가능)<input type="file" id="fileInput" accept="image/*" multiple></label>
+    <button class="modebtn genga active" id="btnGenga" onclick="setMode('genga')"><span class="dot genga"></span>원화 (1)</button>
+    <button class="modebtn douga" id="btnDouga" onclick="setMode('douga')"><span class="dot douga"></span>동화 (2)</button>
+    <button class="modebtn skip" id="btnSkip" onclick="setMode('skip')"><span class="dot skip"></span>제외/노카운트 (3)</button>
+    <div class="spacer"></div>
+    <button class="icon" onclick="undoMark()">되돌리기 (Z)</button>
+    <button class="icon" onclick="clearMarks()">표시 전체 지우기</button>
+    <button class="icon" onclick="zoom(1.2)">확대 (+)</button>
+    <button class="icon" onclick="zoom(1/1.2)">축소 (−)</button>
+    <button class="icon" onclick="fitAll()">전체 보기</button>
+    <button class="icon" onclick="resetScene()">새 씬 초기화</button>
+  </div>
+  <div id="imageNav" style="display:none;"></div>
+  <div id="canvasWrap">
+    <div id="empty">
+      이미지를 불러오면 여기에 표시됩니다.<br>
+      한 씬에 타임시트가 여러 장이면 한 번에 여러 파일을 선택하세요 (아래로 이어붙여 스크롤로 확인).<br><br>
+      클릭 = 표시 찍기 · 우클릭 드래그 = 화면 이동 · 휠 = 위아래 스크롤 · Ctrl+휠 = 확대/축소
+    </div>
+    <canvas id="canvas"></canvas>
+    <div id="hint">1=원화 · 2=동화 · 3=제외(노카운트) · A~F=셀 전환 · Z=되돌리기<br>휠=스크롤 · Ctrl+휠=확대축소 · 우클릭드래그=이동</div>
+  </div>
+</div>
+
+<div id="right">
+  <div id="cellArea">
+    <div class="caption">셀 (한 씬에 A~F 셀이 있으면 여기서 추가/전환)</div>
+    <div id="cellTabs"></div>
+  </div>
+
+  <div id="modeArea">
+    <div class="note">현재 클릭하면 <b id="modeNoteText">원화</b> 로 표시됩니다. 겹치는 셀 등 이미 센 부분은 "제외" 모드로 X 표시만 남기세요.</div>
+  </div>
+
+  <div id="counts">
+    <div class="who">현재 셀 <b id="activeCellLabel">A</b> 진행 상황</div>
+    <div class="countrow"><span class="label"><span class="dot genga"></span>원화</span><span class="num genga" id="gengaCount">0</span></div>
+    <div class="countrow"><span class="label"><span class="dot douga"></span>동화</span><span class="num douga" id="dougaCount">0</span></div>
+  </div>
+
+  <div id="addRow">
+    <input type="text" id="cutInput" placeholder="컷 번호 / 씬 이름 (예: C-12)">
+    <button onclick="addToTable()">현재 씬 전체를 표에 추가 →</button>
+  </div>
+
+  <div id="tableWrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+      <tfoot id="tfoot"></tfoot>
+    </table>
+  </div>
+
+  <div id="exportRow">
+    <button onclick="exportCSV()">표 CSV로 저장</button>
+    <button onclick="exportImage()">주석 이미지 저장</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+const emptyMsg = document.getElementById('empty');
+const GAP = 70;
+const ALL_CELLS = ['A','B','C','D','E','F'];
+
+let images = [];
+let worldWidth = 0, worldHeight = 0;
+let scale = 1, offX = 0, offY = 0;
+let markers = [];
+let mode = 'genga';
+let usedCells = ['A'];
+let activeCell = 'A';
+let rows = [];
+let panning = false, panStart = {x:0,y:0}, offStart = {x:0,y:0};
+
+function resizeCanvas(){
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const files = Array.from(e.target.files);
+  if(!files.length) return;
+  const wasEmpty = images.length === 0;
+  const loaders = files.map(file => new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const im = new Image();
+      im.onload = ()=> resolve({img:im, w:im.width, h:im.height});
+      im.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }));
+  Promise.all(loaders).then(newImgs=>{
+    images.push(...newImgs);
+    emptyMsg.style.display = 'none';
+    recomputeLayout();
+    resizeCanvas();
+    if(wasEmpty) fitAll(); else draw();
+  });
+  e.target.value = '';
+});
+
+function recomputeLayout(){
+  let y = 0, maxW = 0;
+  images.forEach(im=>{ im.worldY = y; y += im.h + GAP; maxW = Math.max(maxW, im.w); });
+  worldWidth = maxW;
+  worldHeight = images.length ? y - GAP : 0;
+  renderImageNav();
+}
+
+function renderImageNav(){
+  const nav = document.getElementById('imageNav');
+  if(images.length <= 1){ nav.style.display = 'none'; nav.innerHTML=''; return; }
+  nav.style.display = 'flex';
+  nav.innerHTML = images.map((im,i)=>`<button onclick="scrollToImage(${i})">타임시트 ${i+1}</button>`).join('');
+}
+
+function scrollToImage(i){
+  const im = images[i];
+  if(!im) return;
+  scale = (wrap.clientWidth / im.w) * 0.96;
+  offX = (wrap.clientWidth - im.w*scale)/2;
+  offY = 20 - im.worldY*scale;
+  clampOffsets();
+  draw();
+}
+
+function fitAll(){
+  if(!images.length) return;
+  const wr = wrap.clientWidth / worldWidth;
+  const hr = wrap.clientHeight / worldHeight;
+  scale = Math.min(wr, hr) * 0.96;
+  offX = (wrap.clientWidth - worldWidth*scale)/2;
+  offY = (wrap.clientHeight - worldHeight*scale)/2;
+  clampOffsets();
+  draw();
+}
+
+function clampOffsets(){
+  if(!images.length) return;
+  const margin = 80;
+  if(worldWidth*scale > wrap.clientWidth){
+    const minX = wrap.clientWidth - worldWidth*scale - margin;
+    const maxX = margin;
+    offX = Math.min(Math.max(offX, minX), maxX);
+  }
+  if(worldHeight*scale > wrap.clientHeight){
+    const minY = wrap.clientHeight - worldHeight*scale - margin;
+    const maxY = margin;
+    offY = Math.min(Math.max(offY, minY), maxY);
+  }
+}
+
+function labelForMarker(m, indexInGroup){
+  if(m.type === 'skip') return '✕';
+  return `${m.cell}${indexInGroup}`;
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!images.length) return;
+  ctx.save();
+  ctx.translate(offX, offY);
+  ctx.scale(scale, scale);
+
+  images.forEach((im, i)=>{
+    ctx.drawImage(im.img, 0, im.worldY);
+    ctx.font = `${13/scale}px sans-serif`;
+    ctx.fillStyle = 'rgba(230,230,235,0.65)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(`타임시트 ${i+1}`, 4/scale, im.worldY - 6/scale);
+    if(i > 0){
+      ctx.setLineDash([8/scale, 6/scale]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1/scale;
+      ctx.beginPath();
+      ctx.moveTo(0, im.worldY - GAP/2);
+      ctx.lineTo(worldWidth, im.worldY - GAP/2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  const seq = {};
+  const r = 11/scale;
+  const font = Math.max(9, 12/scale);
+  markers.forEach(m=>{
+    let n = null;
+    if(m.type !== 'skip'){
+      const key = m.cell + m.type;
+      seq[key] = (seq[key]||0) + 1;
+      n = seq[key];
+    }
+    const color = m.type==='genga' ? '#4f8ef7' : m.type==='douga' ? '#f0574f' : '#7a7f8a';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, r, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.lineWidth = 1.5/scale; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${font}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(labelForMarker(m, n), m.x, m.y);
+  });
+  ctx.restore();
+}
+
+canvas.addEventListener('mousedown', (e)=>{
+  if(e.button === 2){
+    panning = true;
+    panStart = {x:e.clientX, y:e.clientY};
+    offStart = {x:offX, y:offY};
+  }
+});
+window.addEventListener('mousemove', (e)=>{
+  if(panning){
+    offX = offStart.x + (e.clientX - panStart.x);
+    offY = offStart.y + (e.clientY - panStart.y);
+    clampOffsets();
+    draw();
+  }
+});
+window.addEventListener('mouseup', ()=>{ panning = false; });
+canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+canvas.addEventListener('click', (e)=>{
+  if(!images.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const ix = (mx - offX)/scale, iy = (my - offY)/scale;
+  markers.push({x:ix, y:iy, type:mode, cell:activeCell});
+  draw();
+  updateCounts();
+});
+
+canvas.addEventListener('wheel', (e)=>{
+  if(!images.length) return;
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  if(e.ctrlKey || e.metaKey){
+    const factor = Math.pow(1.0015, -e.deltaY);
+    const ix = (mx - offX)/scale, iy = (my - offY)/scale;
+    scale *= factor;
+    offX = mx - ix*scale;
+    offY = my - iy*scale;
+  } else if(e.shiftKey){
+    offX -= e.deltaY;
+  } else {
+    offY -= e.deltaY;
+  }
+  clampOffsets();
+  draw();
+}, {passive:false});
+
+function zoom(factor){
+  if(!images.length) return;
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const ix = (cx-offX)/scale, iy=(cy-offY)/scale;
+  scale *= factor;
+  offX = cx - ix*scale;
+  offY = cy - iy*scale;
+  clampOffsets();
+  draw();
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById('btnGenga').classList.toggle('active', m==='genga');
+  document.getElementById('btnDouga').classList.toggle('active', m==='douga');
+  document.getElementById('btnSkip').classList.toggle('active', m==='skip');
+  document.getElementById('modeNoteText').textContent = m==='genga' ? '원화' : m==='douga' ? '동화' : '제외(노카운트, X표시)';
+}
+
+function undoMark(){ markers.pop(); draw(); updateCounts(); }
+function clearMarks(){
+  if(markers.length && !confirm('모든 이미지의 표시를 지울까요?')) return;
+  markers = []; draw(); updateCounts();
+}
+
+function resetScene(){
+  if((images.length || markers.length) && !confirm('이미지와 표시를 모두 지우고 새 씬을 시작할까요? (표에 쌓인 데이터는 유지됩니다)')) return;
+  images = []; markers = []; usedCells = ['A']; activeCell = 'A';
+  worldWidth = 0; worldHeight = 0;
+  emptyMsg.style.display = 'flex';
+  renderImageNav();
+  renderCellTabs();
+  updateCounts();
+  draw();
+}
+
+function getCellCounts(){
+  const cc = {};
+  usedCells.forEach(c=> cc[c] = {genga:0, douga:0});
+  markers.forEach(m=>{
+    if(m.type === 'skip') return;
+    if(!cc[m.cell]) cc[m.cell] = {genga:0, douga:0};
+    cc[m.cell][m.type]++;
+  });
+  return cc;
+}
+
+function renderCellTabs(){
+  const wrap2 = document.getElementById('cellTabs');
+  const cc = getCellCounts();
+  let html = usedCells.map(c=>{
+    const g = cc[c]?.genga||0, d = cc[c]?.douga||0;
+    return `<button class="celltab ${c===activeCell?'active':''}" onclick="selectCell('${c}')">
+      <b>${c}</b><span class="tc">${g}·${d}</span></button>`;
+  }).join('');
+  if(usedCells.length < ALL_CELLS.length){
+    html += `<button class="celltab addcell" onclick="addCell()">+ 셀 추가</button>`;
+  }
+  wrap2.innerHTML = html;
+}
+
+function selectCell(c){
+  activeCell = c;
+  renderCellTabs();
+  updateCounts();
+}
+function addCell(){
+  const next = ALL_CELLS.find(c => !usedCells.includes(c));
+  if(!next) return;
+  usedCells.push(next);
+  activeCell = next;
+  renderCellTabs();
+  updateCounts();
+}
+
+function updateCounts(){
+  renderCellTabs();
+  const cc = getCellCounts();
+  const cur = cc[activeCell] || {genga:0, douga:0};
+  document.getElementById('activeCellLabel').textContent = activeCell;
+  document.getElementById('gengaCount').textContent = cur.genga;
+  document.getElementById('dougaCount').textContent = cur.douga;
+}
+
+function addToTable(){
+  const cc = getCellCounts();
+  const hasAny = Object.values(cc).some(v => v.genga>0 || v.douga>0);
+  if(!hasAny){ alert('표시된 개수가 없습니다.'); return; }
+  const cut = document.getElementById('cutInput').value.trim() || `#${rows.length+1}`;
+  const cellsData = {};
+  usedCells.forEach(c=> cellsData[c] = { genga: cc[c]?.genga||0, douga: cc[c]?.douga||0 });
+  rows.push({cut, cells: cellsData});
+  renderTable();
+  document.getElementById('cutInput').value = '';
+  resetScene();
+}
+
+function allCellsInRows(){
+  const set = new Set();
+  rows.forEach(r => Object.keys(r.cells).forEach(c => set.add(c)));
+  return ALL_CELLS.filter(c => set.has(c));
+}
+
+function renderTable(){
+  const cells = allCellsInRows();
+  const thead = document.getElementById('thead');
+  const tbody = document.getElementById('tbody');
+  const tfoot = document.getElementById('tfoot');
+
+  thead.innerHTML = `<tr><th>컷</th>${cells.map(c=>`<th>${c} 원화</th><th>${c} 동화</th>`).join('')}<th></th></tr>`;
+
+  tbody.innerHTML = '';
+  const totals = {};
+  cells.forEach(c => totals[c] = {genga:0, douga:0});
+
+  rows.forEach((r, i)=>{
+    let tds = `<td>${r.cut}</td>`;
+    cells.forEach(c=>{
+      const g = r.cells[c]?.genga || 0;
+      const d = r.cells[c]?.douga || 0;
+      totals[c].genga += g; totals[c].douga += d;
+      tds += `<td>${g}</td><td>${d}</td>`;
+    });
+    tds += `<td><button class="delbtn" onclick="deleteRow(${i})">✕</button></td>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = tds;
+    tbody.appendChild(tr);
+  });
+
+  tfoot.innerHTML = `<tr><td>합계</td>${cells.map(c=>`<td>${totals[c].genga}</td><td>${totals[c].douga}</td>`).join('')}<td></td></tr>`;
+}
+function deleteRow(i){ rows.splice(i,1); renderTable(); }
+
+function exportCSV(){
+  if(rows.length===0){ alert('표에 내용이 없습니다.'); return; }
+  const cells = allCellsInRows();
+  let csv = '컷,' + cells.map(c=>`${c} 원화,${c} 동화`).join(',') + '\n';
+  const totals = {}; cells.forEach(c=> totals[c]={genga:0,douga:0});
+  rows.forEach(r=>{
+    let line = [r.cut];
+    cells.forEach(c=>{
+      const g = r.cells[c]?.genga||0, d = r.cells[c]?.douga||0;
+      totals[c].genga += g; totals[c].douga += d;
+      line.push(g, d);
+    });
+    csv += line.join(',') + '\n';
+  });
+  csv += '합계,' + cells.map(c=>`${totals[c].genga},${totals[c].douga}`).join(',') + '\n';
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = '타임시트_집계.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportImage(){
+  if(!images.length){ alert('이미지가 없습니다.'); return; }
+  const off = document.createElement('canvas');
+  off.width = worldWidth; off.height = worldHeight;
+  const octx = off.getContext('2d');
+  images.forEach((im,i)=>{
+    octx.drawImage(im.img, 0, im.worldY);
+    octx.font = '13px sans-serif';
+    octx.fillStyle = 'rgba(0,0,0,0.55)';
+    octx.textAlign = 'left'; octx.textBaseline = 'bottom';
+    octx.fillText(`타임시트 ${i+1}`, 4, im.worldY - 6);
+  });
+  const seq = {};
+  markers.forEach(m=>{
+    let n = null;
+    if(m.type !== 'skip'){
+      const key = m.cell + m.type;
+      seq[key] = (seq[key]||0) + 1;
+      n = seq[key];
+    }
+    const color = m.type==='genga' ? '#4f8ef7' : m.type==='douga' ? '#f0574f' : '#7a7f8a';
+    octx.beginPath();
+    octx.arc(m.x, m.y, 14, 0, Math.PI*2);
+    octx.fillStyle = color; octx.globalAlpha = 0.92; octx.fill(); octx.globalAlpha = 1;
+    octx.lineWidth = 2; octx.strokeStyle = '#fff'; octx.stroke();
+    octx.fillStyle = '#fff';
+    octx.font = 'bold 15px sans-serif';
+    octx.textAlign='center'; octx.textBaseline='middle';
+    octx.fillText(labelForMarker(m, n), m.x, m.y);
+  });
+  const url = off.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url; a.download = '주석_이미지.png'; a.click();
+}
+
+window.addEventListener('keydown', (e)=>{
+  if(e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if(k === '1') setMode('genga');
+  else if(k === '2') setMode('douga');
+  else if(k === '3') setMode('skip');
+  else if(k === 'z') undoMark();
+  else if(k === '+' || k === '=') zoom(1.2);
+  else if(k === '-') zoom(1/1.2);
+  else if(ALL_CELLS.map(c=>c.toLowerCase()).includes(k) && usedCells.includes(k.toUpperCase())) selectCell(k.toUpperCase());
+});
+
+renderCellTabs();
+renderTable();
+resizeCanvas();
+</script>
+</body>
+</html>
